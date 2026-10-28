@@ -1,0 +1,35 @@
+services:
+  mariadb:
+    image: mariadb:11.4
+    container_name: mariadb-estadisticas
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpassword
+      MARIADB_DATABASE: estadisticas_db
+      MARIADB_USER: estadisticas_user
+      MARIADB_PASSWORD: estadisticas_pass
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  estadisticas-ms:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: estadisticas-ms-app
+    ports:
+      - "8082:8082"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 512M 
