@@ -51,7 +51,7 @@ Se definió el archivo `docker-compose.yml` para gestionar la arquitectura distr
 ---
 
 ## 6. Declaración de Uso de IA
-Se utilizó asistencia de Inteligencia Artificial exclusivamente para el formato Markdown y la verificación sintáctica de pipelines YAML. Las decisiones arquitectónicas, configuraciones de servicios y validaciones fueron realizadas por el estudiante.
+Se utilizó asistencia de Inteligencia Artificial exclusivamente para el formato Markdown y la verificación sintáctica de pipelines YAML. Las decisiones arquitectónicas, configuraciones de servicios.
 
 ---
 
