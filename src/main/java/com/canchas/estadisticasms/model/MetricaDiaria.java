@@ -41,4 +41,15 @@ public class MetricaDiaria {
     /** Monto financiero total recaudado en la fecha por reservas pagadas. */
     @Column(name = "recaudacion_total", nullable = false)
     private BigDecimal recaudacionTotal = BigDecimal.ZERO;
+
+    /**
+     * Calcula el porcentaje de efectividad entre reservas pagadas y creadas.
+     * Feature 2: Mejora de lógica de negocio para estadísticas.
+     */
+    public double calcularPorcentajeEfectividad() {
+        if (this.totalReservasCreadas == null || this.totalReservasCreadas == 0) {
+            return 0.0;
+        }
+        return ((double) this.totalReservasPagadas / this.totalReservasCreadas) * 100.0;
+    }
 }
