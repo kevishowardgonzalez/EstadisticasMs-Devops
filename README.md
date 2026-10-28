@@ -28,7 +28,7 @@ Se eligió **GitFlow** porque permite aislar las nuevas características en la r
 
 ## 3. Guía de Buenas Prácticas del Repositorio (IE5)
 
-* **Naming de ramas:**
+* **Nombre de ramas:**
   * `main`: Código probado y estable en producción.
   * `develop`: Integración de las funcionalidades terminadas.
   * `feature/<nombre>`: Nuevas funcionalidades (ej: `feature/actualizar-documentacion`).
