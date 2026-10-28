@@ -1,6 +1,6 @@
-# Microservicio de Estadísticas — Ingeniería DevOps (DOY0101)
+# Microservicio Estadísticas — Evaluación Parcial 2 (DOY0101)
 
-Repositorio oficial para la **Evaluación Parcial N°1** de la asignatura **Ingeniería DevOps** (Duoc UC). Implementa control de versiones formal bajo el modelo **GitFlow**, simulación colaborativa con trazabilidad completa, pipeline de CI con **GitHub Actions** y guía de gobernanza y buenas prácticas.
+Este repositorio contiene la entrega de la **Evaluación Parcial N°2** de la asignatura **Ingeniería DevOps** (Duoc UC). Se automatiza el ciclo de vida del microservicio incorporando contenerización multi-stage, orquestación con dependencias saludables, métricas de cobertura de código con JaCoCo y análisis de seguridad con Snyk en GitHub Actions.
 
 ---
 
@@ -8,41 +8,61 @@ Repositorio oficial para la **Evaluación Parcial N°1** de la asignatura **Inge
 * **Estudiante:** Kevis Howard González
 * **Modalidad:** Individual
 * **Asignatura:** DOY0101 - Ingeniería DevOps
-* **Microservicio:** Estadísticas (Java 17 / Spring Boot / Apache Maven)
+* **Microservicio:** Estadísticas (Java 21 / Spring Boot 3.2.5 / Maven / MariaDB)
 * **Repositorio:** `https://github.com/kevishowardgonzalez/EstadisticasMs-Devops`
 
 ---
 
-## 1. Análisis y Justificación de Modelos de Ramificación en Cloud (IE1)
-
-| Criterio Técnico | GitFlow | Trunk-Based Development (TBD) | GitHub Flow |
-| :--- | :--- | :--- | :--- |
-| **Estructura de ramas** | Múltiples ramas duraderas (`main`, `develop`) y ramas auxiliares de ciclo corto (`feature/*`, `hotfix/*`). | Rama troncal única (`main`) con ramas secundarias efímeras (horas de duración). | Rama principal `main` y ramas de funcionalidad simples que se integran directo tras revisión. |
-| **Ciclo de integración** | Planificado por versiones o releases agrupados tras estabilización en `develop`. | Continuo; commits e integraciones constantes directo a la rama troncal. | Continuo y orientado a despliegues directos a producción tras aprobación de PR. |
-| **Dependencia de CI/CD** | Media-Alta; valida cada etapa en etapas clave de ramas. | Crítica y obligatoria; si falla una prueba, se bloquea el trabajo de todo el equipo. | Alta; cada PR debe validarse automáticamente antes de liberarse. |
-| **Manejo de incidentes** | Ramas aisladas `hotfix/*` directas desde `main` que no tocan trabajo en desarrollo. | Parches aplicados directamente sobre la rama principal (*Fix-Forward*). | Corrección rápida en una rama feature directa y nuevo despliegue. |
-| **Aplicabilidad en Cloud** | Ideal para arquitecturas empresariales con ambientes segregados (Dev, Staging y Prod). | Óptimo para microservicios maduros con entrega continua y Feature Flags. | Ideal para aplicaciones web simples de entrega ágil. |
-
-### Justificación Técnica de la Elección: GitFlow
-Se eligió **GitFlow** debido a que responde a los requerimientos de gobernanza y estabilidad en entornos de nube:
-1. **Segregación estricta de entornos:** La rama `main` refleja fielmente el entorno de producción (código estable), mientras que `develop` actúa como integrador continuo. Esto evita que código incompleto impacte el servicio productivo.
-2. **Mitigación de incidentes con Hotfix:** Permite aislar soluciones urgentes (`hotfix/*`) directamente en producción sin arrastrar características intermedias de `develop`.
-3. **Control y trazabilidad:** Toda integración pasa por Pull Requests obligatorios con validación automatizada.
+## 1. Contenerización Multi-Stage (IE1)
+Se implementó un archivo `Dockerfile` utilizando la técnica de **Multi-Stage Build** para minimizar el tamaño de la imagen final y garantizar que herramientas de compilación no pasen a producción:
+* **Stage 1 (build):** Utiliza `eclipse-temurin:21-jdk`, descarga dependencias y compila el binario ejecutable (`app.jar`).
+* **Stage 2 (runtime):** Utiliza `eclipse-temurin:21-jre`, copiando exclusivamente el archivo JAR empaquetado, reduciendo la superficie de ataque y el peso de la imagen.
 
 ---
 
-## 2. Simulación Colaborativa y Trazabilidad del Código (IE2)
+## 2. Pruebas Automatizadas y Cobertura con JaCoCo (IE2)
+En el archivo `pom.xml` se integró el plugin `jacoco-maven-plugin` (versión 0.8.12):
+* **Fase de preparación (`prepare-agent`):** Habilita el agente para monitorear las líneas de código ejecutadas durante los tests unitarios.
+* **Fase de reporte (`report`):** Genera el informe detallado en `target/site/jacoco/index.html`.
+* **Automatización en Pipeline:** El job `test-and-coverage` ejecuta `mvn clean test jacoco:report` y publica el reporte como artefacto descargable en GitHub Actions.
 
-Se ejecutó el flujo colaborativo aplicando comandos Git (`init`, `checkout`, `commit`, `push`, `pull`, `merge`) con control estricto de trazabilidad mediante Pull Requests:
+---
 
-```text
-               (hotfix/ajuste-puerto-produccion)
-                /-----------------------------\
-               /                               \ PR #3 [Merged]
-main ----------------------------------------------------------> (Producción)
-       \                                       ^
-        \ (Creación develop)                  / (Sincronización final)
-develop -------------------------------------------------------> (Integración)
-          \                     ^  \                     ^
-           \ PR #1 [Merged]    /    \ PR #2 [Merged]    /
-    (feature/actualizar-doc)      (feature/mejora-servicio)
+## 3. Seguridad y Límites de Recursos (IE3)
+* **Escaneo de Vulnerabilidades (SCA):** Se implementó el análisis de dependencias mediante **Snyk CLI** en el pipeline, configurado con severidad alta (`--severity-threshold=high`) para detectar riesgos y emitir un reporte `snyk-report.json`.
+* **Políticas de Gobernanza:** Bloqueo de integraciones no seguras antes de la etapa de empaquetado y construcción.
+* **Límites de Recursos:** En el entorno de ejecución se aplican límites de 1 núcleo de CPU y 1 GB de memoria RAM (con reserva mínima de 0.5 CPU y 512 MB de RAM) para prevenir agotamiento de recursos (*Noisy Neighbor*).
+
+---
+
+## 4. Despliegue y Trazabilidad en CI/CD (IE4)
+El pipeline automatizado en `.github/workflows/ci.yml` asegura un ciclo continuo compuesto por 3 etapas secuenciales:
+1. `Pruebas y Cobertura JaCoCo`: Validación de calidad del código fuente.
+2. `Escaneo de Seguridad Snyk`: Análisis estático de librerías de terceros.
+3. `Construcción de Contenedor Docker`: Empaquetado de la imagen final solo si las pruebas y la seguridad resultan exitosas.
+
+---
+
+## 5. Orquestación con Docker Compose (IE5)
+Se definió el archivo `docker-compose.yml` para gestionar la arquitectura distribuida del microservicio:
+* **Servicio de Base de Datos (`mariadb`):** Configurado con credenciales de entorno y verificación activa (`healthcheck`) mediante comando nativo de ping.
+* **Servicio Backend (`estadisticas-ms`):** Construcción automática desde el `Dockerfile` local, vinculación al puerto `8082` y dependencia estricta (`depends_on: mariadb: condition: service_healthy`) que garantiza que el backend inicie únicamente cuando MariaDB acepte conexiones.
+
+---
+
+## 6. Declaración de Uso de IA
+Se utilizó asistencia de Inteligencia Artificial para el formato Markdown y la verificación sintáctica de pipelines YAML. Las decisiones arquitectónicas, configuraciones de servicios y validaciones fueron realizadas por el estudiante.
+
+---
+
+## 7. Reflexión Individual Obligatoria
+
+### Reflexión: Kevis Howard González
+Durante el desarrollo de la Evaluación Parcial 2 consolidé habilidades técnicas avanzadas de DevOps.  Cree nuevamente la estructura aprendida
+en la E1, para tenr la base para continuar con la E2.
+Comprendí el valor práctico de las construcciones multi-stage de Docker para producir imágenes ligeras 
+y seguras sin dependencias innecesarias de compilación. La incorporación de JaCoCo en el pipeline me demostró 
+cómo auditar objetivamente la calidad del software a través de reportes de cobertura, mientras que la integración de Snyk y 
+límites de memoria en Docker Compose reforzó la importancia del enfoque DevSecOps y la gobernanza de recursos antes de desplegar 
+en entornos en la nube. Mi contribución consistió en la redacción del Dockerfile, la configuración del archivo docker-compose con 
+dependencias saludables, la adaptación del pom.xml y la estructuración del pipeline automatizado en GitHub Actions.
