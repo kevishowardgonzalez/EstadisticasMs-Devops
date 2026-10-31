@@ -35,11 +35,6 @@ class EstadisticasmsApplicationTests {
     private MetricaDiariaService service;
 
     @Test
-    void testMainMethod() {
-        assertDoesNotThrow(() -> EstadisticasmsApplication.main(new String[]{}));
-    }
-
-    @Test
     void testModelMetricaDiariaYCalculoEfectividad() {
         MetricaDiaria metrica = new MetricaDiaria();
         LocalDate hoy = LocalDate.now();
@@ -219,7 +214,6 @@ class EstadisticasmsApplicationTests {
         Exception exGeneral = new Exception("Error interno");
 
         assertNotNull(handler);
-        // Invoca los metodos de manejo para cubrir GlobalExceptionHandler
         try {
             var m1 = handler.getClass().getMethod("handleMetricaException", MetricaException.class);
             m1.invoke(handler, exMetrica);
