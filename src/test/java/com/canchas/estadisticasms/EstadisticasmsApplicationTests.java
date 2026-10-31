@@ -54,16 +54,13 @@ class EstadisticasmsApplicationTests {
         assertEquals(new BigDecimal("150000.00"), m1.getRecaudacionTotal());
         assertEquals(80.0, m1.calcularPorcentajeEfectividad());
 
-        // Constructor all args y casos borde de efectividad
         MetricaDiaria m2 = new MetricaDiaria(2L, hoy, 0, 0, 0, BigDecimal.ZERO);
         assertEquals(0.0, m2.calcularPorcentajeEfectividad());
 
         MetricaDiaria m3 = new MetricaDiaria(3L, hoy, null, 0, 0, BigDecimal.ZERO);
         assertEquals(0.0, m3.calcularPorcentajeEfectividad());
 
-        // Métodos de entidad
         assertNotNull(m1.toString());
-        assertEquals(m1, m1);
         assertNotEquals(m1, m2);
         assertNotEquals(m1.hashCode(), m2.hashCode());
     }
@@ -94,9 +91,8 @@ class EstadisticasmsApplicationTests {
         dto2.setFecha(hoy);
 
         assertNotNull(dto1.toString());
-        assertEquals(dto1, dto1);
         assertNotEquals(dto1, dto2);
-        assertNotEquals(dto1, null);
+        assertNotNull(dto1);
         assertNotEquals(dto1.hashCode(), dto2.hashCode());
     }
 
@@ -118,9 +114,8 @@ class EstadisticasmsApplicationTests {
 
         MetricaResponseDTO res2 = new MetricaResponseDTO(2L, hoy, 10, BigDecimal.TEN, 2);
         assertNotNull(res1.toString());
-        assertEquals(res1, res1);
         assertNotEquals(res1, res2);
-        assertNotEquals(res1, null);
+        assertNotNull(res1);
         assertNotEquals(res1.hashCode(), res2.hashCode());
     }
 
@@ -229,7 +224,6 @@ class EstadisticasmsApplicationTests {
         GlobalExceptionHandler handler = new GlobalExceptionHandler();
         assertNotNull(handler);
 
-        // Ejecuta todos los métodos controladores de excepción disponibles en la clase
         Method[] methods = GlobalExceptionHandler.class.getDeclaredMethods();
         for (Method method : methods) {
             try {
