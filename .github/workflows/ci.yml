@@ -63,7 +63,6 @@ jobs:
           name: snyk-security-report
           path: snyk-report.json
 
-  # 3. Analisis estatico de codigo y Quality Gates con SonarCloud
   sonarcloud-analysis:
     name: Analisis SonarCloud
     runs-on: ubuntu-latest
@@ -92,8 +91,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-            -Dsonar.token=${{ secrets.SONAR_TOKEN }}
+          mvn compile sonar:sonar \
+            -Dsonar.organization=kevishowardgonzalez \
+            -Dsonar.projectKey=kevishowardgonzalez_EstadisticasMs-Devops \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.token=${{ secrets.SONAR_TOKEN }} \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
 
   # 4. Construccion de imagen Docker Multi-Stage (IE1)
   docker-build:
