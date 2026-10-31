@@ -24,6 +24,10 @@ services:
     container_name: estadisticas-ms-app
     ports:
       - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/estadisticas_db
+      SPRING_DATASOURCE_USERNAME: estadisticas_user
+      SPRING_DATASOURCE_PASSWORD: estadisticas_pass
     depends_on:
       mariadb:
         condition: service_healthy
