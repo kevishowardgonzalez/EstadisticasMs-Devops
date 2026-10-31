@@ -1,61 +1,64 @@
-# Microservicio Estadísticas — Evaluación Parcial 2 (DOY0101)
+# Microservicio Estadísticas - DevOps (Evaluación Parcial N°2)
 
-Este repositorio contiene la entrega de la **Evaluación Parcial N°2** de la asignatura **Ingeniería DevOps** (Duoc UC). Se automatiza el ciclo de vida del microservicio incorporando contenerización multi-stage, orquestación con dependencias saludables, métricas de cobertura de código con JaCoCo y análisis de seguridad con Snyk en GitHub Actions.
-
----
-
-## 👥 Datos del Proyecto
-- **Estudiante:** Kevis Howard González
-- **Modalidad:** Individual
-- **Asignatura:** DOY0101 - Ingeniería DevOps
-- **Microservicio:** Estadísticas (Java 21 / Spring Boot 3.2.5 / Maven / MariaDB)
-- **Repositorio:** `https://github.com/kevishowardgonzalez/EstadisticasMs-Devops`
+Este repositorio contiene la arquitectura de integración y entrega continua (CI/CD) para el microservicio **estadisticasms**, desarrollado en **Java 21 con Spring Boot 3.2.5** y gestionado con **Apache Maven**.
 
 ---
 
-## 1. Contenerización Multi-Stage (IE1)
-Se implementó un archivo `Dockerfile` utilizando la técnica de **Multi-Stage Build** para minimizar el tamaño de la imagen final y garantizar que las herramientas de compilación no pasen a producción:
-- **Stage 1 (build):** Utiliza la imagen `maven:3.9.6-eclipse-temurin-21`, descarga dependencias y compila el paquete ejecutable (`mvn clean package -DskipTests`).
-- **Stage 2 (runtime):** Utiliza la imagen ligera `eclipse-temurin:21-jre`, copiando exclusivamente el archivo JAR empaquetado (`app.jar`), reduciendo la superficie de ataque y el tamaño en disco.
+## 👥 Datos del Estudiante
+* **Estudiante:** Kevis Howard González
+* **Asignatura:** Ingeniería DevOps (DOY0101)
+* **Institución:** Duoc UC
 
 ---
 
-## 2. Pruebas Automatizadas y Cobertura con JaCoCo (IE2)
-En el archivo `pom.xml` se integró el plugin `jacoco-maven-plugin` (versión 0.8.12):
-- **Fase de preparación (`prepare-agent`):** Habilita el agente para monitorear las líneas de código ejecutadas durante los tests unitarios.
-- **Fase de reporte (`report`):** Genera el informe detallado en `target/site/jacoco/index.html`.
-- **Automatización en Pipeline:** El job `Pruebas y Cobertura JaCoCo` ejecuta `mvn clean test jacoco:report` y publica el reporte como artefacto descargable (`jacoco-report`) en GitHub Actions.
+## 1. Arquitectura y Contenerización (IE1)
+El microservicio se encuentra empaquetado utilizando un `Dockerfile` multi-stage optimizado:
+* **Etapa de compilación (Build):** Emplea una imagen base de OpenJDK 21 con Maven para compilar y empaquetar el artefacto JAR ejecutable.
+* **Etapa de ejecución (Runtime):** Utiliza una imagen ligera de Java 21 JRE (`eclipse-temurin:21-jre-alpine`), reduciendo la superficie de ataque y minimizando el peso del contenedor para despliegues en la nube.
 
 ---
 
-## 3. Seguridad y Límites de Recursos (IE3)
-- **Escaneo de Vulnerabilidades (SCA):** Se implementó el análisis de dependencias mediante **Snyk CLI** en el pipeline, configurado con severidad alta (`--severity-threshold=high`) para detectar riesgos y emitir un reporte `snyk-security-report`.
-- **Políticas de Gobernanza:** Bloqueo de integraciones no seguras antes de la etapa de empaquetado y construcción.
-- **Límites de Recursos:** En el entorno de ejecución se aplican límites de 1 núcleo de CPU y 1 GB de memoria RAM (con reserva mínima de 0.5 CPU y 512 MB de RAM) para prevenir agotamiento de recursos (*Noisy Neighbor*).
+## 2. Pruebas Automatizadas y Cobertura JaCoCo (IE2)
+* **Framework de Pruebas:** Se implementaron pruebas unitarias con **JUnit 5** y **Mockito**, aislando las capas de Controlador, Servicio, Entidad JPA y DTOs sin requerir una base de datos activa durante la fase de CI.
+* **JaCoCo Plugin:** Integrado en el `pom.xml` para generar el reporte de cobertura de código en formato XML (`target/site/jacoco/jacoco.xml`).
+* **Configuración de Lombok:** Se configuró `lombok.config` (`lombok.addLombokGeneratedAnnotation = true`) para evitar que JaCoCo penalice métodos generados automáticamente (`equals`, `hashCode`, `toString`).
 
 ---
 
-## 4. Despliegue y Trazabilidad en CI/CD (IE4)
-El pipeline automatizado en `.github/workflows/ci.yml` asegura un ciclo continuo compuesto por 3 etapas secuenciales:
-1. `Pruebas y Cobertura JaCoCo`: Validación de calidad del código fuente.
-2. `Escaneo de Seguridad Snyk`: Análisis estático de librerías de terceros.
-3. `Construcción de Contenedor Docker`: Empaquetado y validación de la imagen del microservicio.
+## 3. Análisis Estático de Calidad y Seguridad (IE3)
+El pipeline incorpora un análisis integral de calidad de código y gestión de vulnerabilidades:
+* **SonarCloud (Calidad y Confiabilidad):**
+  * Vinculación directa con el reporte generado por JaCoCo mediante `sonar.coverage.jacoco.xmlReportPaths`.
+  * **Corrección de regla java:S5863:** Se eliminaron las aserciones autorreferenciales (`assertEquals(obj, obj)`) en las pruebas unitarias, elevando el **Reliability Rating a calificación A**.
+  * **Quality Gate:** Estado **Passed** (verde), asegurando estándares de mantenibilidad, seguridad y cobertura.
+* **Snyk (Seguridad en Dependencias):**
+  * Escaneo automático de dependencias en cada ejecución para detectar y prevenir vulnerabilidades de severidad alta o crítica.
+
+---
+
+## 4. Pipeline de CI/CD en GitHub Actions (IE4)
+El archivo `.github/workflows/ci.yml` automatiza el ciclo de vida del software ante eventos de `push` y `pull_request` sobre las ramas `develop` y `main`:
+1. **Pruebas y Cobertura:** Compila el microservicio, ejecuta los tests unitarios y publica el reporte de JaCoCo como artefacto.
+2. **Escaneo de Seguridad Snyk:** Audita las librerías de dependencias.
+3. **Análisis SonarCloud:** Procesa las métricas de código y valida el Quality Gate.
+4. **Construcción de Imagen Docker:** Construye la imagen para validar la reproducibilidad del entorno.
 
 ---
 
 ## 5. Orquestación con Docker Compose (IE5)
-Se definió el archivo `docker-compose.yml` para gestionar la arquitectura distribuida del microservicio:
-- **Servicio de Base de Datos (`mariadb`):** Configurado con credenciales de entorno y verificación activa (`healthcheck`) mediante comando nativo de ping.
-- **Servicio Backend (`estadisticas-ms`):** Construcción automática desde el `Dockerfile` local, vinculación al puerto `8082` y dependencia estricta (`depends_on: mariadb: condition: service_healthy`) que garantiza que el backend inicie únicamente cuando MariaDB acepte conexiones.
+En el archivo `docker-compose.yml` se orquestan los servicios necesarios para el microservicio:
+* **Servicio de Base de Datos:** MariaDB 11.4 con persistencia en el volumen `mariadb_data` y mecanismo de comprobación de salud (`healthcheck`).
+* **Microservicio Java:** Configurado para esperar el estado saludable de la base de datos (`condition: service_healthy`).
+* **Gobernanza y Recursos:** Se definieron límites de memoria y CPU para evitar saturación de recursos en entornos productivos o cloud simulados.
 
 ---
 
-## 6. Declaración de Uso de IA
-Se utilizó asistencia de Inteligencia Artificial exclusivamente para el formato Markdown y la verificación sintáctica de pipelines YAML. Las decisiones arquitectónicas, configuraciones de servicios.
+## 6. Declaración de Uso de Inteligencia Artificial
+Se utilizaron herramientas de Inteligencia Artificial exclusivamente como soporte en la resolución de sintaxis, depuración de workflows y estructuración de la documentación técnica. El diseño, análisis y validación de las pruebas y configuraciones fueron asumidos por el estudiante.
 
 ---
 
 ## 7. Reflexión Individual Obligatoria
 
-### Reflexión: Kevis Howard González
-Durante el desarrollo de la Evaluación Parcial 2 consolidé habilidades técnicas avanzadas de DevOps. Utilicé como base la estructura nueva, siguiento las guias y correcciones de la E1 para continuar de forma ordenada con los requerimientos de esta segunda entrega. Comprendí el valor práctico de las construcciones multi-stage de Docker para producir imágenes ligeras y seguras sin dependencias innecesarias de compilación. La incorporación de JaCoCo en el pipeline me demostró cómo auditar objetivamente la calidad del software a través de reportes de cobertura, mientras que la integración de Snyk y los límites de CPU y memoria en Docker Compose reforzaron la importancia del enfoque DevSecOps y la gobernanza de recursos antes de desplegar en entornos en la nube. Mi contribución consistió en la redacción del Dockerfile, la configuración del archivo docker-compose con dependencias saludables, la adaptación del pom.xml y la estructuración del pipeline automatizado en GitHub Actions.
+### Kevis Howard González
+En esta segunda etapa consolidé la automatización integral de un pipeline de CI/CD para un microservicio Spring Boot. Aprendí a configurar y depurar la integración entre JaCoCo y SonarCloud, entendiendo cómo resolver fallos en el Quality Gate causados por reglas de confiabilidad (como `java:S5863`) y cómo aislar pruebas con Mockito para evitar dependencias con la base de datos en los runners de GitHub Actions. Asimismo, comprendí la relevancia de la contenerización multi-stage y la orquestación con Docker Compose, garantizando que el aplicativo sea reproducible, seguro y trazable desde el repositorio hasta su despliegue operativo.
