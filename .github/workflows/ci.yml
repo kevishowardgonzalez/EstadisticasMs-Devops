@@ -87,12 +87,12 @@ jobs:
           name: jacoco-report
           path: target/site/jacoco/
 
-      - name: Ejecutar analisis SonarCloud
+      - name: Compilar y analizar con SonarCloud
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+          mvn compile org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -DskipTests \
             -Dsonar.organization=kevishowardgonzalez \
             -Dsonar.projectKey=kevishowardgonzalez_EstadisticasMs-Devops \
