@@ -63,11 +63,16 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
           if [ -z "$SNYK_TOKEN" ]; then
-            echo "ERROR: SNYK_TOKEN no esta configurado en los Secrets del repositorio"
+            echo "ERROR: SNYK_TOKEN no esta configurado"
             exit 1
           fi
+
           snyk auth "$SNYK_TOKEN"
-          snyk test --severity-threshold=critical --json > snyk-report.json
+
+          snyk test \
+            --severity-threshold=critical \
+            --json-file-output=snyk-report.json \
+            -d
 
       - name: Subir reporte de seguridad Snyk
         if: always()
