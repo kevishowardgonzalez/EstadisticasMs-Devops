@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Checkout del codigo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Configurar Java 21
         uses: actions/setup-java@v4
@@ -47,7 +47,7 @@ jobs:
 
     steps:
       - name: Checkout del codigo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Configurar Java 21
         uses: actions/setup-java@v4
@@ -94,7 +94,7 @@ jobs:
 
     steps:
       - name: Checkout del codigo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -127,7 +127,7 @@ jobs:
 
     steps:
       - name: Checkout del codigo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Construir imagen Docker
         run: |
