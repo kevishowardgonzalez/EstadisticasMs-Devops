@@ -135,10 +135,11 @@ jobs:
             -t estadisticas-ms:${{ github.sha }} .
 
       - name: Crear credenciales temporales seguras
-        run: |
-          cp .env.example .env
-          echo "MYSQL_PASSWORD=$(openssl rand -hex 16)" >> .env
-          echo "MYSQL_ROOT_PASSWORD=$(openssl rand -hex 16)" >> .env
+     run: |
+       cp .env.example .env
+       echo "" >> .env
+       echo "MYSQL_PASSWORD=$(openssl rand -hex 16)" >> .env
+       echo "MYSQL_ROOT_PASSWORD=$(openssl rand -hex 16)" >> .env
 
       - name: Desplegar contenedores
         run: docker compose up -d --no-build
