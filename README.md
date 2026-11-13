@@ -5,60 +5,53 @@ Este repositorio contiene la arquitectura de integración y entrega continua (CI
 ---
 
 ## 👥 Datos del Estudiante
-* **Estudiante:** Kevis Howard González
-* **Asignatura:** Ingeniería DevOps (DOY0101)
-* **Institución:** Duoc UC
+- **Estudiante:** Kevis Howard González
+- **Asignatura:** Ingeniería DevOps (DOY0101)
+- **Institución:** Duoc UC
 
 ---
 
 ## 1. Arquitectura y Contenerización (IE1)
-El microservicio se encuentra empaquetado utilizando un `Dockerfile` multi-stage optimizado:
-* **Etapa de compilación (Build):** Emplea una imagen base de OpenJDK 21 con Maven para compilar y empaquetar el artefacto JAR ejecutable.
-* **Etapa de ejecución (Runtime):** Utiliza una imagen ligera de Java 21 JRE (`eclipse-temurin:21-jre-alpine`), reduciendo la superficie de ataque y minimizando el peso del contenedor para despliegues en la nube.
+El microservicio se encuentra empaquetado utilizando un `Dockerfile` multi-stage optimizado y seguro, complementado con `.dockerignore` para excluir archivos innecesarios del contexto de construcción:
+- **Etapa de compilación (Build):** Emplea `maven:3.9.6-eclipse-temurin-21` para compilar y empaquetar el artefacto JAR ejecutable.
+- **Etapa de ejecución (Runtime):** Utiliza `eclipse-temurin:21-jre` configurando un usuario sin privilegios (`appuser` en `appgroup`), eliminando la ejecución como `root` y exponiendo el puerto `8082`.
 
 ---
 
 ## 2. Pruebas Automatizadas y Cobertura JaCoCo (IE2)
-* **Framework de Pruebas:** Se implementaron pruebas unitarias con **JUnit 5** y **Mockito**, aislando las capas de Controlador, Servicio, Entidad JPA y DTOs sin requerir una base de datos activa durante la fase de CI.
-* **JaCoCo Plugin:** Integrado en el `pom.xml` para generar el reporte de cobertura de código en formato XML (`target/site/jacoco/jacoco.xml`).
-* **Configuración de Lombok:** Se configuró `lombok.config` (`lombok.addLombokGeneratedAnnotation = true`) para evitar que JaCoCo penalice métodos generados automáticamente (`equals`, `hashCode`, `toString`).
+- **Framework de Pruebas:** Se implementaron pruebas unitarias con **JUnit 5** y **Mockito**, aislando las capas de Controlador, Servicio, Entidad JPA y DTOs sin requerir una base de datos activa durante la fase de pruebas unitarias.
+- **JaCoCo Plugin y Bloqueo por Cobertura:** Integrado en el `pom.xml` para generar el reporte XML (`target/site/jacoco/jacoco.xml`) y validar el umbral mínimo obligatorio mediante la meta `jacoco:check` durante la fase `verify`.
+- **Configuración de Lombok:** Se configuró `lombok.config` (`lombok.addLombokGeneratedAnnotation = true`) para evitar que JaCoCo penalice métodos generados automáticamente (`equals`, `hashCode`, `toString`).
 
 ---
 
 ## 3. Análisis Estático de Calidad y Seguridad (IE3)
-El pipeline incorpora un análisis integral de calidad de código y gestión de vulnerabilidades:
-* **SonarCloud (Calidad y Confiabilidad):**
-  * Vinculación directa con el reporte generado por JaCoCo mediante `sonar.coverage.jacoco.xmlReportPaths`.
-  * **Corrección de regla java:S5863:** Se eliminaron las aserciones autorreferenciales (`assertEquals(obj, obj)`) en las pruebas unitarias, elevando el **Reliability Rating a calificación A**.
-  * **Quality Gate:** Estado **Passed** (verde), asegurando estándares de mantenibilidad, seguridad y cobertura.
-* **Snyk (Seguridad en Dependencias):**
-  * Escaneo automático de dependencias en cada ejecución para detectar y prevenir vulnerabilidades de severidad alta o crítica.
+El pipeline incorpora controles reales y bloqueantes de calidad de código y gestión de vulnerabilidades:
+- **SonarCloud (Calidad y Confiabilidad):**
+  * Vinculación directa con el reporte de JaCoCo mediante `sonar.coverage.jacoco.xmlReportPaths`.
+  * **Quality Gate bloqueante:** Ejecutado con `-Dsonar.qualitygate.wait=true`, deteniendo el pipeline si no se cumplen las métricas de confiabilidad, seguridad y cobertura.
+- **Snyk y Dependabot (Seguridad en Dependencias):**
+  * **Snyk CLI:** Valida la existencia de `SNYK_TOKEN` y ejecuta `snyk test --severity-threshold=high` (bloqueante ante vulnerabilidades altas o críticas, sin omitir errores), subiendo el reporte JSON como artefacto.
+  * **Dependabot:** Configurado en `.github/dependabot.yml` para auditar actualizaciones semanales de dependencias Maven y acciones de GitHub Actions.
 
 ---
 
 ## 4. Pipeline de CI/CD en GitHub Actions (IE4)
-El archivo `.github/workflows/ci.yml` automatiza el ciclo de vida del software ante eventos de `push` y `pull_request` sobre las ramas `develop` y `main`:
-1. **Pruebas y Cobertura:** Compila el microservicio, ejecuta los tests unitarios y publica el reporte de JaCoCo como artefacto.
-2. **Escaneo de Seguridad Snyk:** Audita las librerías de dependencias.
-3. **Análisis SonarCloud:** Procesa las métricas de código y valida el Quality Gate.
-4. **Construcción de Imagen Docker:** Construye la imagen para validar la reproducibilidad del entorno.
+El archivo `.github/workflows/ci.yml` automatiza el ciclo de vida del software ante eventos de `push` y `pull_request` sobre las ramas `develop` y `main` mediante 5 jobs secuenciales (`needs`):
+1. **Pruebas y Cobertura (`test-and-coverage`):** Ejecuta `mvn clean verify` (con `jacoco:check`) y publica el reporte de JaCoCo como artefacto.
+2. **Escaneo de Seguridad (`security-scan`):** Audita las dependencias con Snyk bloqueando severidades altas.
+3. **Análisis SonarCloud (`sonarcloud-analysis`):** Procesa las métricas de código y exige la aprobación del Quality Gate.
+4. **Construcción de Imagen Docker (`docker-build`):** Construye la imagen multi-stage etiquetándola con el SHA del commit (`estadisticas-ms:${{ github.sha }}`) para garantizar trazabilidad.
+5. **Despliegue Simulado (`deploy-simulado`):** Levanta el stack completo con Docker Compose en el runner, verifica el estado saludable de ambos contenedores y ejecuta una prueba *smoke test* real (`curl -f http://localhost:8082/api/estadisticas`).
 
 ---
 
-## 5. Orquestación con Docker Compose (IE5)
-En el archivo `docker-compose.yml` se orquestan los servicios necesarios para el microservicio:
-* **Servicio de Base de Datos:** MariaDB 11.4 con persistencia en el volumen `mariadb_data` y mecanismo de comprobación de salud (`healthcheck`).
-* **Microservicio Java:** Configurado para esperar el estado saludable de la base de datos (`condition: service_healthy`).
-* **Gobernanza y Recursos:** Se definieron límites de memoria y CPU para evitar saturación de recursos en entornos productivos o cloud simulados.
+## 5. Orquestación y Despliegue Local con Docker Compose (IE5)
+En el archivo `docker-compose.yml` se orquestan los servicios bajo una red personalizada (`red-estadisticas`), política de reinicio (`restart: unless-stopped`) y variables externalizadas en `.env` (a partir de `.env.example`):
+- **Servicio de Base de Datos (`mariadb`):** MariaDB 11.4 con persistencia en `mariadb_data`, comprobación de salud (`healthcheck`) y montaje de los scripts SQL (`./src/main/resources/db_estadisticas:/docker-entrypoint-initdb.d:ro`) para crear e inicializar la tabla `estadisticas` automáticamente al arrancar.
+- **Microservicio Java (`estadisticas-ms`):** Configurado con `depends_on` (`condition: service_healthy`), su propio `healthcheck` HTTP sobre `/api/estadisticas` y límites de CPU y memoria (`deploy.resources`).
 
----
-
-## 6. Declaración de Uso de Inteligencia Artificial
-Se utilizaron herramientas de Inteligencia Artificial exclusivamente como soporte en la resolución de sintaxis, depuración de workflows y estructuración de la documentación técnica. El diseño, análisis y validación de las pruebas y configuraciones fueron asumidos por el estudiante.
-
----
-
-## 7. Reflexión Individual Obligatoria
-
-### Kevis Howard González
-En esta segunda etapa consolidé la automatización integral de un pipeline de CI/CD para un microservicio Spring Boot. Aprendí a configurar y depurar la integración entre JaCoCo y SonarCloud, entendiendo cómo resolver fallos en el Quality Gate causados por reglas de confiabilidad (como `java:S5863`) y cómo aislar pruebas con Mockito para evitar dependencias con la base de datos en los runners de GitHub Actions. Asimismo, comprendí la relevancia de la contenerización multi-stage y la orquestación con Docker Compose, garantizando que el aplicativo sea reproducible, seguro y trazable desde el repositorio hasta su despliegue operativo.
+### Pasos para levantar el stack localmente
+1. **Copiar variables de entorno:**
+   ```bash
+   cp .env.example .env
