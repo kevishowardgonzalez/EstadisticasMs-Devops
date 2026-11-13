@@ -5,6 +5,10 @@ on:
     branches: [ "develop", "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   # 1. Pruebas y medicion de cobertura con JaCoCo (IE2)
@@ -23,7 +27,7 @@ jobs:
           cache: maven
 
       - name: Ejecutar pruebas, generar reporte y verificar umbral JaCoCo
-        run: mvn clean verify
+        run: mvn -B -ntp clean verify
 
       - name: Subir reporte de JaCoCo como artefacto
         if: always()
@@ -32,7 +36,7 @@ jobs:
           name: jacoco-report
           path: target/site/jacoco/
 
-  # 2. Analisis de seguridad y escaneo de vulnerabilidades con bloqueo real (IE3)
+  # 2. Analisis de seguridad y escaneo de vulnerabilidades con Snyk (IE3)
   security-scan:
     name: Escaneo de Seguridad Snyk
     runs-on: ubuntu-latest
@@ -41,10 +45,20 @@ jobs:
       - name: Checkout del codigo
         uses: actions/checkout@v4
 
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Compilar dependencias Maven para Snyk
+        run: mvn -B -ntp test-compile
+
       - name: Instalar Snyk CLI
         run: npm install -g snyk
 
-      - name: Verificar token Snyk
+      - name: Autenticar y escanear dependencias con Snyk
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
@@ -52,13 +66,8 @@ jobs:
             echo "ERROR: SNYK_TOKEN no esta configurado en los Secrets del repositorio"
             exit 1
           fi
-
-      - name: Autenticar y escanear dependencias con Snyk (bloquea ante severidad critica)
-     env:
-       SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-     run: |
-       snyk auth "$SNYK_TOKEN"
-       snyk test --severity-threshold=critical --json > snyk-report.json
+          snyk auth "$SNYK_TOKEN"
+          snyk test --severity-threshold=critical --json > snyk-report.json
 
       - name: Subir reporte de seguridad Snyk
         if: always()
@@ -67,7 +76,7 @@ jobs:
           name: snyk-security-report
           path: snyk-report.json
 
-  # 3. Analisis estatico de codigo y Quality Gates con bloqueo (IE2/IE3)
+  # 3. Analisis estatico de codigo y Quality Gates con SonarCloud (IE2/IE3)
   sonarcloud-analysis:
     name: Analisis SonarCloud
     runs-on: ubuntu-latest
@@ -85,21 +94,12 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Verificar token SonarCloud
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          if [ -z "$SONAR_TOKEN" ]; then
-            echo "ERROR: SONAR_TOKEN no esta configurado"
-            exit 1
-          fi
-
-      - name: Ejecutar pruebas, cobertura y SonarCloud (con Quality Gate bloqueante)
+      - name: Ejecutar pruebas, cobertura y SonarCloud
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mvn clean verify org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar \
+          mvn -B -ntp clean verify org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar \
             -Dsonar.organization=kevishowardgonzalez \
             -Dsonar.projectKey=kevishowardgonzalez_EstadisticasMs-Devops \
             -Dsonar.host.url=https://sonarcloud.io \
@@ -107,44 +107,53 @@ jobs:
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
             -Dsonar.qualitygate.wait=true
 
-  # 4. Construccion de imagen Docker Multi-Stage etiquetada por SHA (IE1/IE4)
-  docker-build:
-    name: Construccion de Contenedor Docker
+  # 4. Construccion y Despliegue Simulado con Docker Compose (IE1/IE4/IE5)
+  deploy-simulado:
+    name: Construccion y Despliegue Simulado
     runs-on: ubuntu-latest
     needs: [test-and-coverage, security-scan, sonarcloud-analysis]
     steps:
       - name: Checkout del codigo
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Construir y etiquetar imagen Docker con SHA del commit
+      - name: Construir imagen Docker etiquetada con SHA
         run: |
-          docker build -t estadisticas-ms:${{ github.sha }} -t estadisticas-ms:latest -f Dockerfile .
-          docker images | grep estadisticas-ms
+          docker build \
+            -t estadisticas-ms:latest \
+            -t estadisticas-ms:${{ github.sha }} .
 
-  # 5. Despliegue automatico en entorno simulado y Smoke Test (IE4/IE5)
-  deploy-simulado:
-    name: Despliegue Simulado con Docker Compose
-    runs-on: ubuntu-latest
-    needs: docker-build
-    steps:
-      - name: Checkout del codigo
-        uses: actions/checkout@v4
-
-      - name: Configurar variables de entorno
-        run: cp .env.example .env
-
-      - name: Levantar stack completo (MariaDB + Microservicio)
-        run: docker compose up -d --build
-
-      - name: Verificar estado de contenedores y probar API
+      - name: Crear credenciales temporales seguras
         run: |
-          sleep 30
+          cp .env.example .env
+          echo "MYSQL_PASSWORD=$(openssl rand -hex 16)" >> .env
+          echo "MYSQL_ROOT_PASSWORD=$(openssl rand -hex 16)" >> .env
+
+      - name: Desplegar contenedores
+        run: docker compose up -d --no-build
+
+      - name: Comprobar servicios
+        run: docker compose ps
+
+      - name: Verificar respuesta de la API (Smoke Test)
+        run: |
+          for intento in {1..30}; do
+            codigo=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8082/api/estadisticas || true)
+            if [ "$codigo" = "200" ]; then
+              echo "API funcionando correctamente: HTTP 200"
+              exit 0
+            fi
+            echo "Esperando API (HTTP $codigo). Intento $intento/30..."
+            sleep 3
+          done
+          echo "ERROR: La API no respondio correctamente"
+          exit 1
+
+      - name: Mostrar registros si hay errores
+        if: failure()
+        run: |
           docker compose ps
-          curl -f http://localhost:8082/api/estadisticas
+          docker compose logs --no-color --tail=80
 
-      - name: Detener entorno simulado
+      - name: Detener contenedores
         if: always()
-        run: docker compose down -v
+        run: docker compose down -v --remove-orphans
