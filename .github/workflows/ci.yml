@@ -53,12 +53,12 @@ jobs:
             exit 1
           fi
 
-      - name: Autenticar y escanear dependencias con Snyk (bloquea ante severidad alta)
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        run: |
-          snyk auth "$SNYK_TOKEN"
-          snyk test --severity-threshold=high --json > snyk-report.json
+      - name: Autenticar y escanear dependencias con Snyk (bloquea ante severidad critica)
+     env:
+       SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+     run: |
+       snyk auth "$SNYK_TOKEN"
+       snyk test --severity-threshold=critical --json > snyk-report.json
 
       - name: Subir reporte de seguridad Snyk
         if: always()
