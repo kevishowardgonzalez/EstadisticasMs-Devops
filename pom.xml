@@ -41,7 +41,7 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Fuerza Jackson 3.1.8 para eliminar CVE-2025/2026 en jackson-databind -->
+            <!-- Fuerza Jackson 3.1.8 para eliminar CVE en jackson-databind -->
             <dependency>
                 <groupId>tools.jackson</groupId>
                 <artifactId>jackson-bom</artifactId>
