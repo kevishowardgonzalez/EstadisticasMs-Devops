@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS metrica_diaria (
-                                              id INT AUTO_INCREMENT PRIMARY KEY,
+                                              id BIGINT AUTO_INCREMENT PRIMARY KEY,
                                               fecha DATE NOT NULL UNIQUE,
                                               total_reservas_creadas INT DEFAULT 0,
                                               total_reservas_pagadas INT DEFAULT 0,
