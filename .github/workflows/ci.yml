@@ -58,6 +58,13 @@ jobs:
       - name: Instalar Snyk CLI
         run: npm install -g snyk
 
+      - name: Dar permisos de ejecucion a Maven Wrapper
+        run: |
+          if [ -f mvnw ]; then
+            chmod +x mvnw
+            echo "Permisos de Maven Wrapper corregidos"
+          fi
+
       - name: Autenticar y escanear dependencias con Snyk
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
@@ -70,9 +77,9 @@ jobs:
           snyk auth "$SNYK_TOKEN"
 
           snyk test \
+            --org=kevishowardgonzalez \
             --severity-threshold=critical \
-            --json-file-output=snyk-report.json \
-            -d
+            --json-file-output=snyk-report.json
 
       - name: Subir reporte de seguridad Snyk
         if: always()
